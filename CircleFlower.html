@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Page Title</title>
+        <style>
+            /* Style the button that is used to open and close the collapsible content */
+            .collapsible {
+              background-color: #eee;
+              color: #444;
+              cursor: pointer;
+              padding: 18px;
+              width: 100%;
+              border: none;
+              text-align: left;
+              outline: none;
+              font-size: 15px;
+            }
+
+            /* Add a background color to the button if it is clicked on (add the .active class with JS), and when you move the mouse over it (hover) */
+            .active, .collapsible:hover {
+              background-color: #ccc;
+            }
+
+            /* Style the collapsible content. Note: hidden by default */
+            .content {
+              padding: 0 18px;
+              display: none;
+              overflow: hidden;
+              background-color: #f1f1f1;
+            }
+        
+            .sidebar {
+              height: 100%;
+              width: 0;
+              position: fixed;
+              z-index: 1;
+              top: 0;
+              left: 0;
+              background-color: #111;
+              overflow-x: hidden;
+              transition: 0.5s;
+              padding-top: 60px;
+            }
+
+            .sidebar form, a  {
+              padding: 8px 8px 8px 32px;
+              text-decoration: none;
+              font-size: 15px;
+              color: #818181;
+              display: block;
+              transition: 0.3s;
+            }
+
+            .sidebar .closebtn {
+              position: absolute;
+              top: 0;
+              right: 25px;
+              font-size: 36px;
+              margin-left: 50px;
+            }
+
+            .openbtn {
+              font-size: 20px;
+              cursor: pointer;
+              background-color: #111;
+              color: white;
+              padding: 10px 15px;
+              border: none;
+            }
+
+            .openbtn:hover {
+              background-color: #444;
+            }
+
+            #main {
+              transition: margin-left 0.5s;
+              padding: 16px;
+            }
+
+            .levelmanipoff {
+				display: none;
+                visibility: hidden;
+            }
+            
+            .levelmanipon {
+				display: inline-block;
+                visibility: visible;
+            }
+            
+            table, th, td {
+              	border: 1px solid black;
+                border-collapse: collapse;
+                padding: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="mySidebar" class="sidebar">
+            <a href="javascript:void(0)" class="closebtn" onclick="toggleSidebar()">×</a>
+            <form>
+                <label for="size">Canvas Size (in Pixel²):</label> <br>
+                <input type="number" id="size" name="size" value="500" min="0" max="750" oninput="sizeChange()"/>
+                <max id="sizeMax">/750</max>
+            </form>
+            <form>
+                <label for="refRad">Reference Radius: (in Pixels)</label> <br>
+                <input type="number" id="refRad" name="refRad" value="30" min="0" max="142" oninput="drawLevels()"/>
+                <max id="circleRadMax">/353</max>
+            </form>
+            <form>
+                <label for="levels">Number Levels:</label> <br>
+                <input type="number" id="levels" name="levels" value="3" min="0" max="100" oninput="setLevelOption(Number(this.value));drawLevels()"/>
+                <max id="levelsMax">/100</max>
+            </form>
+            <form>
+                <label for="levelRads">Radius of Level n: (3,2,1 for 3+2n+1n^2)</label> <br>
+                <input id="levelRads" name="levelRads" value="0,1" oninput="calculateCircleSettings();drawLevels()"/>
+            </form>
+            <form>
+                <label for="circleRads">Radius of Circles in Level n: (3,2,1 for 3+2n+1n^2)</label> <br>
+                <input id="circleRads" name="circleRads" value="1,0" oninput="calculateCircleSettings();drawLevels()"/>
+            </form>
+            <form>
+                <label for="circlesForm">Number Circles in Level n: (3,2,1 for 3+2n+1n^2)</label> <br>
+                <input id="circlesForm" name="circlesForm" value="1,3" oninput="calculateCircleSettings();drawLevels()"/>
+            </form>
+        </div>
+        <div id="main">
+        	<button class="openbtn" onclick="toggleSidebar()">☰ More</button>
+            <br><br>
+            <form>
+                Manipulate Level
+                <select name="levelManip" id="levelManip">
+                    <option value="" selected="selected">Select Level to manipulate</option>
+                </select>
+            </form>
+            
+            <div class=levelmanipoff>
+              <label for="levelRad">Level Radius</label> <br>
+              <input type="number" id="levelRad" name="levelRad" min="0" max="250" oninput="drawLevels()"/>
+            </div>
+            <div class=levelmanipoff>
+              <label for="circleRad">Circle Radius</label> <br>
+              <input type="number" id="circleRad" name="circleRad" min="0" max="250" oninput="drawLevels()"/>
+            </div>
+            <div class=levelmanipoff>
+              <label for="circles">Number Circles</label> <br>
+              <input type="number" id="circles" name="circles" min="0" max="250" oninput="drawLevels()"/>
+            </div>
+            
+            <br>
+            <canvas id="myCanvas" width="500" height="500" style="border:1px solid grey;"></canvas>
+            <button type="button" class="collapsible" id="activeManipsButton" onclick="toggleActiveManipulations()">Active Manipulations</button>
+            <table class="content" id="activeManips">
+            	<tr>
+                	<th>Level</th>
+                	<th>Level Radius</th>
+                    <th>Circle Radius</th>
+                    <th>Circles</th>
+                    <th><button type="button" onclick="resetAll(this)">RESET ALL</button></th>
+                <tr>
+            </table>
+        </div>
+    </body>
+</html>
+
+<script>
+	
+	
+    let initialCircleSettings = [];
+	let activeCircleSettings = [];
+    calculateCircleSettings();
+    
+    function setLevelOption(numberLevels) {
+        let levelManip = document.getElementById("levelManip");
+        
+        for(let i = levelManip.options.length-1; i>numberLevels; i--) {
+            levelManip.remove(i);
+        }
+        
+        for (let i = levelManip.options.length; i <= numberLevels; i++) {
+          levelManip.options.add(new Option(i, i));
+        }
+        
+        calculateCircleSettings();
+    }
+    
+    function toggleLevelManipAttrVisibility() {
+    	for (let attr of document.getElementsByClassName("levelmanipoff")) {
+        	attr.classList.toggle("levelmanipon")
+        }
+        
+    }
+    
+    function calculateCircleSettings() {
+    	initialCircleSettings = []; 
+        activeCircleSettings = [];
+        
+    	let levels = Number(document.getElementById("levels").value);
+        let levelRads = document.getElementById("levelRads").value.replace(" ", "").split(",");
+        let circleRads = document.getElementById("circleRads").value.replace(" ", "").split(",");
+        let circles = document.getElementById("circlesForm").value.replace(" ", "").split(",");
+        
+        function evPol(pol, val) {
+        	let result = 0;
+            for (let i = 0; i < pol.length; i++) {
+            	result += Number(pol[i])*Number(val)**i;
+            }
+            return result;
+        };
+        
+        for (let setting of [initialCircleSettings, activeCircleSettings]) {
+        	for (let i = 1; i <= levels; i++) {
+              setting[i-1] = new Map();
+              setting[i-1].set("levelRad", evPol(levelRads, i));
+              setting[i-1].set("circleRad", evPol(circleRads, i));
+              setting[i-1].set("circles", evPol(circles, i));
+        	}
+        }
+        
+        
+    }
+    
+    window.onload = function() {
+        calculateCircleSettings();
+        
+        let levels = document.getElementById("levels");
+        setLevelOption(Number(levels.value));
+        
+        let levelManip = document.getElementById("levelManip");
+        let levelRad
+        
+        let manipAttrs = document.getElementsByClassName("levelmanipoff");
+        
+        levelManip.onchange = (ev) => {
+        	let sel = document.getElementById("levelManip").options.selectedIndex;
+            let visible = manipAttrs[0].classList.contains("levelmanipon");
+            
+            if ((sel == 0 && visible) || (sel != 0 && !visible)) {
+            	toggleLevelManipAttrVisibility();
+            }
+            
+            
+            if (sel > 0) {
+            	for (let attr of manipAttrs) {
+                	let input = attr.getElementsByTagName("input")[0];
+                    input.value = activeCircleSettings[sel-1].get(input.id)
+                    
+                    if (Number(input.value) != initialCircleSettings[sel-1].get(input.id)) {
+                    	
+                    }
+                }
+            }
+        }
+        
+        for (let attr of manipAttrs) {
+        	let input = attr.getElementsByTagName("input")[0];
+            input.oninput = () => {
+            	let sel = document.getElementById("levelManip").options.selectedIndex;
+            	activeCircleSettings[sel-1].set(input.id, Number(input.value));
+                drawLevels();
+                
+                docManip(input.id + "_" + sel, input.value);
+            }
+        }
+        
+    }
+    
+    function toggleSidebar() {
+        let sidebar = document.getElementById("mySidebar");
+        if (sidebar.style.width == "250px") {
+        	document.getElementById("mySidebar").style.width = "0";
+        	document.getElementById("main").style.marginLeft= "0";
+        } else {
+        	sidebar.style.width = "250px";
+        document.getElementById("main").style.marginLeft = "250px";
+        }
+    }
+
+	function getCanvasContext() {
+    	return document.getElementById("myCanvas").getContext("2d");
+    }
+
+    function sizeChange() {
+    	let size = document.getElementById("size");
+        document.getElementById("myCanvas").height = size.value;
+        document.getElementById("myCanvas").width = size.value;
+        
+        updateRadius();
+        
+        drawLevels();
+    }
+    
+    function updateRadius() {
+        let size = document.getElementById("size").value;
+        let rad = document.getElementById("circleRad");
+        rad.max = Math.floor(size/Math.sqrt(2));
+        document.getElementById("circleRadMax").innerText = "/" + rad.max;
+    }
+    
+    function drawCircle(x,y,r) {
+    	const myCanvas = document.getElementById("myCanvas")
+        const ctx = myCanvas.getContext("2d");
+        ctx.fillStyle = "#EEEE00";
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, 2*Math.PI);
+        ctx.fill();
+        ctx.stroke();
+    }
+    
+    function drawFirstCircle() {
+    	let size = document.getElementById("size").value;
+        let rad = document.getElementById("circleRad").value;
+        drawCircle(size/2, size/2, rad);
+        
+        const myCanvas = document.getElementById("myCanvas")
+        const ctx = myCanvas.getContext("2d");
+        
+        /*
+        for (i = 0; i < size; i = i + 20) {
+        	ctx.beginPath();
+            ctx.moveTo(i, 0);
+            ctx.lineTo(i, size);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(0, i);
+            ctx.lineTo(size, i);
+            ctx.stroke();
+        }*/
+        
+    }
+    
+    function clearCanvas() {
+    	const context = document.getElementById("myCanvas").getContext("2d");
+        context.clearRect(0, 0, context.canvas.width, context.canvas.height)
+        
+        console.clear()
+    }
+    
+    function drawLevel(levelRad, circleRad, circleCount, color = "red") {
+    	let size = document.getElementById("size").value;
+        let count = circleCount;
+        
+        const circles = [];
+        for (let i = 0; i < count; i++) {
+        	let angle = i*(2*Math.PI/count);
+        	let circle = new Circle(size/2 - levelRad*Math.sin(angle), size/2 - levelRad*Math.cos(angle), circleRad);
+            circle.fill(color);
+            circles[i] = circle;
+        }
+        
+        let disk = circleRad**2-(Math.sin(Math.PI/count)*levelRad)**2;
+        disk = disk.toFixed(5)
+        
+        if (count > 1 && disk > 0) {
+        	let t1 = levelRad*Math.cos(Math.PI/count)+Math.sqrt(disk); 
+            let t2 = levelRad*Math.cos(Math.PI/count)-Math.sqrt(disk);
+
+            function getAngle(t) {
+            	let angle = Math.asin(t*Math.sin(Math.PI/count)/circleRad);
+                let altAngle = Math.PI - angle; 
+                // both angles (an angle a and Pi-a) have the same sinus value which we need, but just one is correct
+                
+                function checkCalc(angle) {
+                	return Math.abs(t*Math.cos(Math.PI/count)-levelRad-circleRad*Math.cos(angle));
+                }
+                
+                let rightAngle = checkCalc(angle) < checkCalc(altAngle) ? angle : altAngle; 
+                
+                //console.log((rightAngle/Math.PI).toFixed(2) + "PI = " + (360*rightAngle/(2*Math.PI)).toFixed(2) + "°");
+                
+                return rightAngle;
+            }
+            
+            let angle1 = getAngle(t1); 
+            let angle2 = getAngle(t2);
+            
+            for (let i = 0; i < count; i++) { 
+        		let startAngle = -angle1 - i*2*Math.PI/count;
+                let endAngle = 2*Math.PI - angle2 - i*2*Math.PI/count
+                circles[i].draw(startAngle, endAngle)
+        	}
+        } else {
+        	circles.forEach((circle) => {circle.draw()});
+        }
+        
+        return circles;
+    }
+    
+    async function drawLevels() {
+    	clearCanvas();
+        
+        let levels = Number(document.getElementById("levels").value);
+        let refRad = Number(document.getElementById("refRad").value);
+        
+        
+        let blueHexPart = 0;
+        
+        console.log(activeCircleSettings)
+        for (let i = levels; i > 0; i--) {
+        
+        	if (levels > 1) {
+        		blueHexPart = Math.floor((i-1)/(levels-1)*255);
+            } else {
+            	blueHexPart = 0;
+            }
+            let color = `rgb(${255-blueHexPart}, 0, ${blueHexPart})`;
+            
+            drawLevel(activeCircleSettings[i-1].get("levelRad")*refRad, activeCircleSettings[i-1].get("circleRad")*refRad, activeCircleSettings[i-1].get("circles"), color);
+        }
+    }
+  	
+    class Circle {
+  		constructor(x, y, r) {
+    		this.x = x;
+   			this.y = y;
+            this.r = r;
+  		}
+        
+        draw(angle1 = 0, angle2 = 2*Math.PI) {
+            const ctx = getCanvasContext();
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.r, - Math.PI/2 + angle1, - Math.PI/2 + angle2);
+            ctx.stroke();
+        }
+        
+        
+        fill(color = "red") {
+            const ctx = getCanvasContext();
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.r, 0, 2*Math.PI);
+            ctx.fill();
+        }
+    }
+    
+    drawLevels();
+    
+    function toggleActiveManipulations() {
+    	let manipButton = document.getElementById("activeManipsButton")
+        manipButton.classList.toggle("active");
+        var content = manipButton.nextElementSibling;
+        if (content.style.display === "block") {
+          content.style.display = "none";
+        } else {
+          content.style.display = "block";
+        }
+    }
+    
+    function resetAll() {
+    	let table = document.getElementById("activeManips");
+        
+        for (let i = table.children.length-1; i > 0 ; i--) {
+        	table.removeChild(table.children[i]);
+        }
+        
+        calculateCircleSettings();
+        
+        let sel = document.getElementById("levelManip").options.selectedIndex;
+            
+        if (sel > 0) {
+        	for (let attr of ["levelRad", "circleRad", "circles"]) {
+        		document.getElementById(attr).value = initialCircleSettings[sel-1].get(attr)
+        	}  
+        }
+        
+        drawLevels();
+    }
+    
+    function resetLevel(button) {
+    	console.log(button.parentElement.parentElement)
+        let row = button.parentElement.parentElement;
+        let level = row.id.split("_")[1];
+        console.log("level " + level);
+        console.log(activeCircleSettings);
+        
+        for (let attr of ["levelRad", "circleRad", "circles"]) {
+            let initValue = initialCircleSettings[level-1].get(attr);
+            activeCircleSettings[level-1].set(attr, initValue);
+            document.getElementById(attr).value = initValue;
+        }
+        
+        row.parentElement.removeChild(row);
+        
+        drawLevels();
+    }
+    
+    function getRowLevel(row) {
+    	return Number(row.id.split("_")[1]);
+    }
+    
+    function docManip(fieldId, value) {
+        let level = fieldId.split("_")[1];
+        addRowIfNotExistent(level);
+        document.getElementById(fieldId).innerText = value;
+    }
+    
+    function addRowIfNotExistent(level) {
+        let tabular = document.getElementById("activeManips");
+        let newRow = createManipRow(level);
+        let foundRow = document.getElementById(newRow.id);
+        if (foundRow == null) {
+        	for (let row of tabular.children) {
+            	if (Number(getRowLevel(row)) > level) {
+                	tabular.insertBefore(newRow, row);
+                    console.log("Added new row with id " + newRow.id)
+                    return newRow;
+                }
+            }
+            console.log("Added new row with id " + newRow.id)
+            return tabular.appendChild(newRow);
+        } else {
+        	console.log("Row for level " + level + "already exists with id " + foundRow.id);
+            return foundRow;
+        }
+    }
+    
+    function createManipRow(level) {
+    	let row = document.createElement("tr");
+        row.id = "row-level_" + level;
+        
+        let levelEl = document.createElement("td");
+        levelEl.innerText = level;
+        row.appendChild(levelEl)
+        
+        for (let id of ["levelRad", "circleRad", "circles"]) {
+        	let entry = document.createElement("td");
+            entry.id = id + "_" + level;
+            row.appendChild(entry);
+        }
+        
+        let buttonField = document.createElement("td")
+        let button = document.createElement("button");
+        button.type = "button";
+        button.setAttribute("onclick", "resetLevel(this)");
+        button.innerText = "RESET";
+        buttonField.appendChild(button);
+        row.appendChild(buttonField);
+        return row;
+    }
+    
+</script>
+
