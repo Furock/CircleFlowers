@@ -194,6 +194,16 @@
 	let activeCircleSettings = [];
     calculateCircleSettings();
 
+    function resetCircleSettings() {
+        for (let i = 0; i < activeCircleSettings.length; i++) {
+            initialCircleSettings[i].forEach((value, key) => {
+                console.log(key + " " + value);
+                activeCircleSettings[i].set(key, value);
+            });
+        }
+        //console.log(activeCircleSettings);
+    }
+
     //Canvas should be a square
     function getCanvasSize() {
         let canvas = document.getElementById("myCanvas");
@@ -235,8 +245,7 @@
     }
     
     function calculateCircleSettings() {
-    	initialCircleSettings = []; 
-        activeCircleSettings = [];
+    	initialCircleSettings = [];
         
     	let levels = Number(document.getElementById("levels").value);
         let levelRads = document.getElementById("levelRads").value.replace(" ", "").split(",");
@@ -252,15 +261,18 @@
         };
         
         for (let setting of [initialCircleSettings, activeCircleSettings]) {
-        	for (let i = 1; i <= levels; i++) {
-              setting[i-1] = new Map();
-              setting[i-1].set("levelRad", evPol(levelRads, i));
-              setting[i-1].set("circleRad", evPol(circleRads, i));
-              setting[i-1].set("circles", evPol(circles, i));
+            for (let i = 1; i <= levels; i++) {
+                if (setting === initialCircleSettings || setting[i-1] == null) {
+                    setting[i-1] = new Map();
+                    setting[i-1].set("levelRad", evPol(levelRads, i));
+                    setting[i-1].set("circleRad", evPol(circleRads, i));
+                    setting[i-1].set("circles", evPol(circles, i));
+                }
         	}
         }
         
-        
+        activeCircleSettings = activeCircleSettings.slice(0, levels);
+        console.log(activeCircleSettings)
     }
     
     window.onload = function() {
@@ -390,7 +402,7 @@
             let t2 = levelRad*Math.cos(Math.PI/count)-Math.sqrt(disk);
 
             function getAngle(t) {
-            	let angle = Math.asin(t*Math.sin(Math.PI/count)/circleRad);
+            	let angle = Math.asin((t*Math.sin(Math.PI/count)/circleRad).toFixed(5));;
                 let altAngle = Math.PI - angle; 
                 // both angles (an angle a and Pi-a) have the same sinus value which we need, but just one is correct
                 
@@ -461,9 +473,6 @@
             } else {
             	colorToDraw = color1;
             }
-
-            
-            
             
             drawLevel(activeCircleSettings[i-1].get("levelRad")*refRad, 
                 activeCircleSettings[i-1].get("circleRad")*refRad, 
@@ -493,7 +502,6 @@
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.r, 0, 2*Math.PI);
             ctx.fill();
-            console.log("circle filled with color " + color);
         }
     }
     
@@ -517,7 +525,7 @@
         	table.removeChild(table.children[i]);
         }
         
-        calculateCircleSettings();
+        resetCircleSettings();
         
         let sel = document.getElementById("levelManip").options.selectedIndex;
             
